@@ -1,0 +1,28 @@
+# Archivos de compilación de .NET
+bin/
+obj/
+*.csproj.user
+*.suo
+*.user
+
+# Archivos de Visual Studio
+.vs/
+v16/
+v17/
+
+# Archivos de paquetes NuGet
+packages/
+
+# Archivos de configuración de usuario
+*.Development.json
+
+# Archivos de publicación
+PublishProfiles/
+
+# Archivos de logs (si usas Serilog)
+Logs/
+
+# Archivos temporales
+*.cache
+*.bak
+*.log
