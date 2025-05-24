@@ -1,11 +1,13 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
-VisualStudioVersion = 17.13.35919.96 d17.13
+VisualStudioVersion = 17.13.35919.96
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AprendeMasNotificationService", "AprendeMasNotificationService\AprendeMasNotificationService.csproj", "{2C03DF24-0183-7AF9-1682-E98F1B631D70}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AprendeMasWindowsService", "AprendeMasWindowsService\AprendeMasWindowsService.csproj", "{11C0F93A-3D79-733A-6B99-B5235B61E070}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AprendeMas.UI", "AprendeMas.UI\AprendeMas.UI.csproj", "{35CD6DF7-0166-4006-B5BD-C9D687071A13}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,6 +23,10 @@ Global
 		{11C0F93A-3D79-733A-6B99-B5235B61E070}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{11C0F93A-3D79-733A-6B99-B5235B61E070}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{11C0F93A-3D79-733A-6B99-B5235B61E070}.Release|Any CPU.Build.0 = Release|Any CPU
+		{35CD6DF7-0166-4006-B5BD-C9D687071A13}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{35CD6DF7-0166-4006-B5BD-C9D687071A13}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{35CD6DF7-0166-4006-B5BD-C9D687071A13}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{35CD6DF7-0166-4006-B5BD-C9D687071A13}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

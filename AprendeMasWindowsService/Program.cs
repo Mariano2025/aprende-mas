@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Hosting.WindowsServices;
+using AprendeMasWindowsService.Service;
 
 namespace MiServicioWindows
 {
@@ -16,7 +17,7 @@ namespace MiServicioWindows
                 })
                 .ConfigureServices(services =>
                 {
-                    services.AddHostedService<Worker>();
+                    services.AddHostedService<AprendeMasService>();
                     services.AddLogging(logging =>
                     {
                         logging.AddEventLog(settings =>

@@ -1,56 +1,158 @@
 ﻿using System;
+using System.IO;
 using System.IO.Pipes;
+using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using static System.Net.Mime.MediaTypeNames;
 
-internal class Program
+namespace AprendeMasNotificationService
 {
-    private static NotifyIcon notifyIcon;
-
-    [STAThread]
-    private static async Task Main(string[] args)
+    internal class Program
     {
-        // Iniciar notificaciones del sistema
-        System.Windows.Forms.Application.EnableVisualStyles();
-        notifyIcon = new NotifyIcon
+        private static NotifyIcon notifyIcon;
+        private static bool isListening;
+        private static readonly string ConfigFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config.json");
+        private static readonly string LogFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "NotificationService.log");
+
+        [STAThread]
+        private static void Main(string[] args)
         {
-            Icon = SystemIcons.Information,
-            Visible = true,
-            BalloonTipTitle = "Servicio Activo",
-            BalloonTipText = "Esperando notificaciones..."
-        };
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
 
-        notifyIcon.ShowBalloonTip(2000);
+            // Leer estado inicial
+            isListening = LoadConfig();
+            Log($"Cliente iniciado. Escuchando mensajes: {isListening}");
 
-        Console.WriteLine("Cliente iniciado. Escuchando mensajes...");
+            notifyIcon = new NotifyIcon
+            {
+                Icon = SystemIcons.Information,
+                Visible = true,
+                BalloonTipTitle = "Servicio Activo",
+                BalloonTipText = isListening ? "Escuchando notificaciones..." : "Notificador activo, pero en pausa."
+            };
+            notifyIcon.ShowBalloonTip(2000);
 
-        while (true)
+            var cts = new CancellationTokenSource();
+            var task = ListenForMessagesAsync(cts.Token);
+
+            // Ejecutar bucle de mensajes de Windows Forms
+            Application.Run();
+
+            // Limpiar al salir
+            cts.Cancel();
+            task.Wait();
+            notifyIcon.Visible = false;
+            notifyIcon.Dispose();
+        }
+
+        private static async Task ListenForMessagesAsync(CancellationToken cancellationToken)
+        {
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                try
+                {
+                    using var pipeServer = new NamedPipeServerStream("CanalNotificaciones", PipeDirection.In);
+                    await pipeServer.WaitForConnectionAsync(cancellationToken);
+
+                    using var reader = new StreamReader(pipeServer);
+                    string mensaje = await reader.ReadLineAsync();
+
+                    if (!string.IsNullOrEmpty(mensaje))
+                    {
+                        Log($"Mensaje recibido: {mensaje}");
+                        HandleMessage(mensaje);
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    Log("Escucha de mensajes cancelada.");
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    Log($"Error: {ex.Message}");
+                }
+            }
+        }
+
+        private static void HandleMessage(string mensaje)
+        {
+            if (mensaje.Equals("START", StringComparison.OrdinalIgnoreCase))
+            {
+                isListening = true;
+                SaveConfig();
+                notifyIcon.BalloonTipTitle = "Servicio Activo";
+                notifyIcon.BalloonTipText = "Escuchando notificaciones...";
+                notifyIcon.ShowBalloonTip(2000);
+                Log("Estado cambiado a START.");
+            }
+            else if (mensaje.Equals("STOP", StringComparison.OrdinalIgnoreCase))
+            {
+                isListening = false;
+                SaveConfig();
+                notifyIcon.BalloonTipTitle = "Servicio Pausado";
+                notifyIcon.BalloonTipText = "Notificador activo, pero en pausa.";
+                notifyIcon.ShowBalloonTip(2000);
+                Log("Estado cambiado a STOP.");
+            }
+            else if (isListening)
+            {
+                // Mostrar notificación solo si está escuchando
+                notifyIcon.BalloonTipTitle = "Notificación";
+                notifyIcon.BalloonTipText = mensaje;
+                notifyIcon.ShowBalloonTip(5000);
+            }
+        }
+
+        private static bool LoadConfig()
         {
             try
             {
-                using var pipeServer = new NamedPipeServerStream("CanalNotificaciones");
-                await pipeServer.WaitForConnectionAsync();
-
-                using var reader = new StreamReader(pipeServer);
-                string mensaje = await reader.ReadLineAsync();
-
-                if (!string.IsNullOrEmpty(mensaje))
+                if (File.Exists(ConfigFilePath))
                 {
-                    MostrarNotificacion(mensaje);
+                    string json = File.ReadAllText(ConfigFilePath);
+                    var config = JsonSerializer.Deserialize<Config>(json);
+                    return config?.IsListening ?? false;
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error: {ex.Message}");
+                Log($"Error al cargar config: {ex.Message}");
+            }
+            return false; // Por defecto, no escuchar
+        }
+
+        private static void SaveConfig()
+        {
+            try
+            {
+                var config = new Config { IsListening = isListening };
+                string json = JsonSerializer.Serialize(config, new JsonSerializerOptions { WriteIndented = true });
+                File.WriteAllText(ConfigFilePath, json);
+            }
+            catch (Exception ex)
+            {
+                Log($"Error al guardar config: {ex.Message}");
+            }
+        }
+
+        private static void Log(string message)
+        {
+            try
+            {
+                File.AppendAllText(LogFilePath, $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} - {message}{Environment.NewLine}");
+            }
+            catch
+            {
+                // Ignorar errores de logging
             }
         }
     }
 
-    private static void MostrarNotificacion(string mensaje)
+    internal class Config
     {
-        notifyIcon.BalloonTipTitle = "Notificación";
-        notifyIcon.BalloonTipText = mensaje;
-        notifyIcon.ShowBalloonTip(5000);
+        public bool IsListening { get; set; }
     }
 }
