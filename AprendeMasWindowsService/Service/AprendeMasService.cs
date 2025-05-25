@@ -1,7 +1,7 @@
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using AprendeMasWindowsService.Communication;
 using AprendeMasWindowsService.Notifications;
+using AprendeMasWindowsService.Utilities;
+using Microsoft.Extensions.Hosting;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -10,22 +10,22 @@ namespace AprendeMasWindowsService.Service
 {
     public class AprendeMasService : BackgroundService
     {
-        private readonly ILogger<AprendeMasService> logger;
+        private readonly Logger logger;
         private readonly PipeServer pipeServer;
         private readonly NotificationManager notificationManager;
 
-        public AprendeMasService(ILoggerFactory loggerFactory)
+        public AprendeMasService()
         {
-            this.logger = loggerFactory.CreateLogger<AprendeMasService>();
+            logger = new Logger("Service", @"C:\Program Files (x86)\Aprende Mas\AprendeMasWindowsService");
             pipeServer = new PipeServer(HandleCommand);
-            notificationManager = new NotificationManager(loggerFactory.CreateLogger<NotificationManager>());
+            notificationManager = new NotificationManager();
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
             try
             {
-                logger.LogInformation("Servicio AprendeMasWindowsService iniciando...");
+                logger.Info("Servicio AprendeMasWindowsService iniciando...", nameof(ExecuteAsync));
 
                 pipeServer.Start();
 
@@ -34,11 +34,11 @@ namespace AprendeMasWindowsService.Service
                     await Task.Delay(1000, stoppingToken);
                 }
 
-                logger.LogInformation("Servicio AprendeMasWindowsService detenido.");
+                logger.Info("Servicio AprendeMasWindowsService detenido.", nameof(ExecuteAsync));
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Error crítico en el servicio.");
+                logger.Error("Error crítico en el servicio.", ex, nameof(ExecuteAsync));
                 throw;
             }
             finally
@@ -49,13 +49,13 @@ namespace AprendeMasWindowsService.Service
 
         public override async Task StartAsync(CancellationToken cancellationToken)
         {
-            logger.LogInformation("Iniciando AprendeMasWindowsService...");
+            logger.Info("Iniciando AprendeMasWindowsService...", nameof(StartAsync));
             await base.StartAsync(cancellationToken);
         }
 
         public override async Task StopAsync(CancellationToken cancellationToken)
         {
-            logger.LogInformation("Deteniendo AprendeMasWindowsService...");
+            logger.Info("Deteniendo AprendeMasWindowsService...", nameof(StopAsync));
             await notificationManager.StopAsync();
             pipeServer.Stop();
             await base.StopAsync(cancellationToken);
@@ -68,23 +68,23 @@ namespace AprendeMasWindowsService.Service
                 switch (command.ToUpper())
                 {
                     case "START":
-                        logger.LogInformation("Recibido comando START. Iniciando NotificationManager...");
+                        logger.Info("Recibido comando START. Iniciando NotificationManager...", nameof(HandleCommand));
                         await notificationManager.StartAsync();
                         break;
 
                     case "STOP":
-                        logger.LogInformation("Recibido comando STOP. Deteniendo NotificationManager...");
+                        logger.Info("Recibido comando STOP. Deteniendo NotificationManager...", nameof(HandleCommand));
                         await notificationManager.StopAsync();
                         break;
 
                     default:
-                        logger.LogWarning($"Comando desconocido recibido: {command}");
+                        logger.Warning($"Comando desconocido recibido: {command}", nameof(HandleCommand));
                         break;
                 }
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error al procesar el comando '{command}'.");
+                logger.Error($"Error al procesar el comando '{command}'.", ex, nameof(HandleCommand));
             }
         }
     }

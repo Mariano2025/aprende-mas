@@ -1,96 +1,57 @@
-﻿using System;
+﻿using AprendeMasWindowsService.Utilities;
+using System;
 using System.IO.Pipes;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace AprendeMasWindowsService.Communication
 {
     public class PipeServer
     {
-        private const string PipeName = "AprendeMasPipe";
-        private CancellationTokenSource cancellationTokenSource;
-        private bool isRunning;
+        private readonly Logger logger;
         private readonly Action<string> commandHandler;
+        private CancellationTokenSource cts;
 
         public PipeServer(Action<string> commandHandler)
         {
+            logger = new Logger("PipeServer", @"C:\Program Files (x86)\Aprende Mas\AprendeMasWindowsService");
             this.commandHandler = commandHandler;
         }
 
-        // Inicia el servidor de pipes
         public void Start()
         {
-            if (isRunning)
-            {
-                return;
-            }
-
-            try
-            {
-                isRunning = true;
-                cancellationTokenSource = new CancellationTokenSource();
-                Task.Run(() => ListenForCommandsAsync(cancellationTokenSource.Token), cancellationTokenSource.Token);
-            }
-            catch (Exception ex)
-            {
-                throw new Exception($"Error al iniciar el servidor de pipes: {ex.Message}", ex);
-            }
+            cts = new CancellationTokenSource();
+            ThreadPool.QueueUserWorkItem(_ => Listen(cts.Token));
+            logger.Info("PipeServer iniciado.", nameof(Start));
         }
 
-        // Detiene el servidor de pipes
         public void Stop()
         {
-            if (!isRunning)
-            {
-                return;
-            }
-
-            try
-            {
-                isRunning = false;
-                cancellationTokenSource?.Cancel();
-                cancellationTokenSource?.Dispose();
-                cancellationTokenSource = null;
-            }
-            catch (Exception ex)
-            {
-                throw new Exception($"Error al detener el servidor de pipes: {ex.Message}", ex);
-            }
+            cts?.Cancel();
+            cts?.Dispose();
+            logger.Info("PipeServer detenido.", nameof(Stop));
         }
 
-        // Escucha comandos de forma asíncrona
-        private async Task ListenForCommandsAsync(CancellationToken cancellationToken)
+        private void Listen(CancellationToken cancellationToken)
         {
-            while (isRunning && !cancellationToken.IsCancellationRequested)
+            while (!cancellationToken.IsCancellationRequested)
             {
                 try
                 {
-                    using (var pipeServer = new NamedPipeServerStream(PipeName, PipeDirection.In))
+                    using var pipeServer = new NamedPipeServerStream("AprendeMasPipe", PipeDirection.In);
+                    pipeServer.WaitForConnection();
+
+                    using var reader = new StreamReader(pipeServer);
+                    string command = reader.ReadLine();
+
+                    if (!string.IsNullOrEmpty(command))
                     {
-                        // Esperar conexión de un cliente
-                        await pipeServer.WaitForConnectionAsync(cancellationToken);
-
-                        // Leer el comando
-                        byte[] buffer = new byte[1024];
-                        int bytesRead = await pipeServer.ReadAsync(buffer, 0, buffer.Length, cancellationToken);
-                        string command = Encoding.UTF8.GetString(buffer, 0, bytesRead).Trim();
-
-                        // Procesar el comando
+                        logger.Info($"Comando recibido: {command}", nameof(Listen));
                         commandHandler?.Invoke(command);
-
-                        // Desconectar el cliente
-                        pipeServer.Disconnect();
                     }
-                }
-                catch (OperationCanceledException)
-                {
-                    // Cancelación solicitada, salir del bucle
-                    break;
                 }
                 catch (Exception ex)
                 {
-                    // Loguear el error (integrar con ILogger más adelante)
+                    logger.Error("Error en PipeServer.", ex, nameof(Listen));
                 }
             }
         }

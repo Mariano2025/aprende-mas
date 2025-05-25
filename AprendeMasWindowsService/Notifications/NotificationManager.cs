@@ -1,5 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
-using AprendeMasWindowsService.Communication;
+﻿using AprendeMasWindowsService.Communication;
+using AprendeMasWindowsService.Utilities;
 using System;
 using System.Threading.Tasks;
 
@@ -7,13 +7,13 @@ namespace AprendeMasWindowsService.Notifications
 {
     public class NotificationManager
     {
-        private readonly ILogger<NotificationManager> logger;
+        private readonly Logger logger;
         private readonly NotifierPipeClient notifierPipeClient;
         private bool isRunning;
 
-        public NotificationManager(ILogger<NotificationManager> logger)
+        public NotificationManager()
         {
-            this.logger = logger;
+            logger = new Logger("NotificationManager", @"C:\Program Files (x86)\Aprende Mas\AprendeMasWindowsService");
             notifierPipeClient = new NotifierPipeClient();
             isRunning = false;
         }
@@ -22,7 +22,7 @@ namespace AprendeMasWindowsService.Notifications
         {
             if (isRunning)
             {
-                logger.LogWarning("NotificationManager ya está corriendo.");
+                logger.Warning("NotificationManager ya está corriendo.", nameof(StartAsync));
                 return;
             }
 
@@ -30,12 +30,12 @@ namespace AprendeMasWindowsService.Notifications
             {
                 isRunning = true;
                 await notifierPipeClient.SendMessageAsync("START");
-                logger.LogInformation("NotificationManager iniciado y comando START enviado.");
+                logger.Info("NotificationManager iniciado y comando START enviado.", nameof(StartAsync));
             }
             catch (Exception ex)
             {
                 isRunning = false;
-                logger.LogError(ex, "Error al iniciar el NotificationManager.");
+                logger.Error("Error al iniciar el NotificationManager.", ex, nameof(StartAsync));
                 throw;
             }
         }
@@ -44,7 +44,7 @@ namespace AprendeMasWindowsService.Notifications
         {
             if (!isRunning)
             {
-                logger.LogWarning("NotificationManager no está corriendo.");
+                logger.Warning("NotificationManager no está corriendo.", nameof(StopAsync));
                 return;
             }
 
@@ -52,11 +52,11 @@ namespace AprendeMasWindowsService.Notifications
             {
                 isRunning = false;
                 await notifierPipeClient.SendMessageAsync("STOP");
-                logger.LogInformation("NotificationManager detenido y comando STOP enviado.");
+                logger.Info("NotificationManager detenido y comando STOP enviado.", nameof(StopAsync));
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Error al detener el NotificationManager.");
+                logger.Error("Error al detener el NotificationManager.", ex, nameof(StopAsync));
                 throw;
             }
         }
@@ -65,18 +65,18 @@ namespace AprendeMasWindowsService.Notifications
         {
             if (!isRunning)
             {
-                logger.LogWarning("NotificationManager no está corriendo. No se puede enviar notificación.");
+                logger.Warning("NotificationManager no está corriendo. No se puede enviar notificación.", nameof(SendNotificationAsync));
                 return;
             }
 
             try
             {
                 await notifierPipeClient.SendMessageAsync(message);
-                logger.LogInformation($"Notificación enviada: {message}");
+                logger.Info($"Notificación enviada: {message}", nameof(SendNotificationAsync));
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error al enviar notificación: {message}");
+                logger.Error($"Error al enviar notificación: {message}", ex, nameof(SendNotificationAsync));
                 throw;
             }
         }

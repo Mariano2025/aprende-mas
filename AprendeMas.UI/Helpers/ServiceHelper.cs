@@ -1,6 +1,7 @@
 ﻿using System;
 using System.ServiceProcess;
 using AprendeMas.UI.Helpers;
+using AprendeMas.UI.Utilities;
 
 namespace AprendeMas.UI.Helpers
 {
@@ -10,9 +11,12 @@ namespace AprendeMas.UI.Helpers
         private const string ServiceName = "AprendeMasWindowsService";
         private const string NotifierServiceName = "AprendeMasNotificationService";
 
+        private readonly Logger logger;
+
         public ServiceHelper()
         {
             pipeClient = new PipeClient();
+            logger = new Logger("ServiceHelper", @"C:\Program Files (x86)\Aprende Mas\AprendeMas.UI");
         }
 
         // Inicia el servicio y el notificador de forma sincronizada
@@ -32,9 +36,11 @@ namespace AprendeMas.UI.Helpers
 
                 // Enviar comando al servicio para iniciar el notificador
                 pipeClient.SendCommand("START");
+                logger.Info($"No se pudo iniciar el servicio o el notificador", nameof(StartServiceAndNotifier));
             }
             catch (Exception ex)
             {
+                logger.Error($"Comando enviado: START",ex , nameof(StartServiceAndNotifier));
                 throw new Exception($"No se pudo iniciar el servicio o el notificador: {ex.Message}", ex);
             }
         }
@@ -54,11 +60,13 @@ namespace AprendeMas.UI.Helpers
                     {
                         serviceController.Stop();
                         serviceController.WaitForStatus(ServiceControllerStatus.Stopped, TimeSpan.FromSeconds(30));
+                        logger.Info($"Notificador detenido", nameof(StartServiceAndNotifier));
                     }
                 }
             }
             catch (Exception ex)
             {
+                logger.Error($"No se pudo detener el servicio o el notificador", ex, nameof(StopServiceAndNotifier));
                 throw new Exception($"No se pudo detener el servicio o el notificador: {ex.Message}", ex);
             }
         }

@@ -1,7 +1,7 @@
 ﻿using System;
 using System.IO;
 
-namespace AprendeMasWindowsService.Utilities
+namespace AprendeMas.UI.Utilities
 {
     public class Logger
     {

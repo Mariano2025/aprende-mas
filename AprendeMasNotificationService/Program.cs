@@ -1,4 +1,5 @@
-﻿using System;
+﻿using AprendeMasNotificationService.Utilities;
+using System;
 using System.IO;
 using System.IO.Pipes;
 using System.Text.Json;
@@ -13,7 +14,7 @@ namespace AprendeMasNotificationService
         private static NotifyIcon notifyIcon;
         private static bool isListening;
         private static readonly string ConfigFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config.json");
-        private static readonly string LogFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "NotificationService.log");
+        private static readonly Logger logger = new Logger("NotificationService", @"C:\Program Files (x86)\Aprende Mas\AprendeMasNotificationService");
 
         [STAThread]
         private static void Main(string[] args)
@@ -21,9 +22,8 @@ namespace AprendeMasNotificationService
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
-            // Leer estado inicial
             isListening = LoadConfig();
-            Log($"Cliente iniciado. Escuchando mensajes: {isListening}");
+            logger.Info($"Cliente iniciado. Escuchando mensajes: {isListening}", nameof(Main));
 
             notifyIcon = new NotifyIcon
             {
@@ -37,10 +37,8 @@ namespace AprendeMasNotificationService
             var cts = new CancellationTokenSource();
             var task = ListenForMessagesAsync(cts.Token);
 
-            // Ejecutar bucle de mensajes de Windows Forms
             Application.Run();
 
-            // Limpiar al salir
             cts.Cancel();
             task.Wait();
             notifyIcon.Visible = false;
@@ -61,18 +59,18 @@ namespace AprendeMasNotificationService
 
                     if (!string.IsNullOrEmpty(mensaje))
                     {
-                        Log($"Mensaje recibido: {mensaje}");
+                        logger.Info($"Mensaje recibido: {mensaje}", nameof(ListenForMessagesAsync));
                         HandleMessage(mensaje);
                     }
                 }
                 catch (OperationCanceledException)
                 {
-                    Log("Escucha de mensajes cancelada.");
+                    logger.Info("Escucha de mensajes cancelada.", nameof(ListenForMessagesAsync));
                     break;
                 }
                 catch (Exception ex)
                 {
-                    Log($"Error: {ex.Message}");
+                    logger.Error($"Error al procesar mensaje.", ex, nameof(ListenForMessagesAsync));
                 }
             }
         }
@@ -86,7 +84,7 @@ namespace AprendeMasNotificationService
                 notifyIcon.BalloonTipTitle = "Servicio Activo";
                 notifyIcon.BalloonTipText = "Escuchando notificaciones...";
                 notifyIcon.ShowBalloonTip(2000);
-                Log("Estado cambiado a START.");
+                logger.Info("Estado cambiado a START.", nameof(HandleMessage));
             }
             else if (mensaje.Equals("STOP", StringComparison.OrdinalIgnoreCase))
             {
@@ -95,11 +93,10 @@ namespace AprendeMasNotificationService
                 notifyIcon.BalloonTipTitle = "Servicio Pausado";
                 notifyIcon.BalloonTipText = "Notificador activo, pero en pausa.";
                 notifyIcon.ShowBalloonTip(2000);
-                Log("Estado cambiado a STOP.");
+                logger.Info("Estado cambiado a STOP.", nameof(HandleMessage));
             }
             else if (isListening)
             {
-                // Mostrar notificación solo si está escuchando
                 notifyIcon.BalloonTipTitle = "Notificación";
                 notifyIcon.BalloonTipText = mensaje;
                 notifyIcon.ShowBalloonTip(5000);
@@ -119,9 +116,9 @@ namespace AprendeMasNotificationService
             }
             catch (Exception ex)
             {
-                Log($"Error al cargar config: {ex.Message}");
+                logger.Error($"Error al cargar config.", ex, nameof(LoadConfig));
             }
-            return false; // Por defecto, no escuchar
+            return false;
         }
 
         private static void SaveConfig()
@@ -134,19 +131,7 @@ namespace AprendeMasNotificationService
             }
             catch (Exception ex)
             {
-                Log($"Error al guardar config: {ex.Message}");
-            }
-        }
-
-        private static void Log(string message)
-        {
-            try
-            {
-                File.AppendAllText(LogFilePath, $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} - {message}{Environment.NewLine}");
-            }
-            catch
-            {
-                // Ignorar errores de logging
+                logger.Error($"Error al guardar config.", ex, nameof(SaveConfig));
             }
         }
     }
