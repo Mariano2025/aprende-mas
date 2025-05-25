@@ -1,81 +1,123 @@
-AprendeMasV2
-Sistema de notificaciones para Windows que permite enviar mensajes a través de un servicio, con una interfaz gráfica y un notificador en la bandeja del sistema.
-Requisitos
+# AprendeMasV2
 
-Windows 10 o superior
-.NET 8.0 SDK
-Visual Studio 2022 (opcional, para desarrollo)
-Inno Setup 6 (para generar el instalador)
+Sistema de notificaciones para Windows que permite enviar mensajes a través de un servicio, controlado por una interfaz gráfica y mostrado en la bandeja del sistema. Desarrollado con .NET 8, usa named pipes para la comunicación y genera logs detallados para depuración.
 
-Instalación
+## Características
 
-Clona el repositorio:git clone https://github.com/Mariano2025/aprende-mas.git
+- **Interfaz Gráfica**: Controla el servicio con botones "Iniciar" y "Detener" (`AprendeMas.UI`).
+- **Servicio de Windows**: Procesa comandos y envía notificaciones (`AprendeMasWindowsService`).
+- **Notificador**: Muestra un ícono en la bandeja del sistema y notificaciones (`AprendeMasNotificationService`).
+- **Logging**: Registra eventos en archivos `.log` con niveles `INFO`, `WARNING`, `ERROR`.
+- **Instalador**: Configura todo automáticamente con Inno Setup.
 
+## Requisitos
 
-Navega al directorio:cd aprende-mas
+- Windows 10 o superior
+- [.NET 8.0 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
+- Visual Studio 2022 (opcional, para desarrollo)
+- [Inno Setup 6](https://jrsoftware.org/isinfo.php) (para generar el instalador)
 
+## Instalación
 
-Compila la solución:dotnet build
+1. **Clona el repositorio**:
+   ```bash
+   git clone https://github.com/Mariano2025/aprende-mas.git
+   cd aprende-mas
+   ```
 
+2. **Compila la solución**:
+   ```bash
+   dotnet build --configuration Release
+   ```
 
-Genera el instalador:
-Abre Setup.iss en Inno Setup.
-Compila (Ctrl+F9) para crear AprendeMasSetup.exe.
+3. **Genera el instalador**:
+   - Abre `Setup.iss` en Inno Setup.
+   - Compila (Ctrl+F9) para crear `AprendeMasSetup.exe`.
 
+4. **Ejecuta el instalador**:
+   - Corre `AprendeMasSetup.exe` como administrador.
+   - Instala en `C:\Program Files (x86)\Aprende Mas`.
 
-Ejecuta el instalador como administrador:.\AprendeMasSetup.exe
+## Uso
 
+1. **Abrir la interfaz gráfica**:
+   - Desde el Menú de Inicio o Escritorio, ejecuta `AprendeMas.UI.exe`.
+   - O navega a `C:\Program Files (x86)\Aprende Mas\AprendeMas.UI` y corre el ejecutable.
 
+2. **Controlar el servicio**:
+   - **Iniciar Servicio**: Activa las notificaciones (envía comando `START`).
+   - **Detener Servicio**: Pausa las notificaciones (envía comando `STOP`).
 
-Uso
+3. **Verificar el notificador**:
+   - Un ícono aparece en la bandeja del sistema.
+   - Muestra "Escuchando notificaciones..." cuando está activo o "Notificador activo, pero en pausa" cuando está detenido.
+   - Las notificaciones aparecen como globos en la bandeja.
 
-Abre la interfaz gráfica desde el Menú de Inicio o Escritorio (AprendeMas.UI.exe).
-Usa los botones:
-Iniciar Servicio: Activa las notificaciones (envía comando START).
-Detener Servicio: Pausa las notificaciones (envía comando STOP).
+## Estructura del Proyecto
 
+- **AprendeMas.UI**:
+  - Interfaz gráfica en Windows Forms.
+  - `MainForm.cs`: UI con botones de control.
+  - `PipeClient.cs`: Envía comandos al servicio via named pipe (`AprendeMasPipe`).
+- **AprendeMasWindowsService**:
+  - Servicio de Windows que procesa comandos y envía notificaciones.
+  - `AprendeMasService.cs`: Lógica principal del servicio.
+  - `NotificationManager.cs`: Gestiona el envío de notificaciones.
+  - `PipeServer.cs`: Escucha comandos en `AprendeMasPipe`.
+  - `NotifierPipeClient.cs`: Envía notificaciones al notificador via `CanalNotificaciones`.
+  - `Logger.cs`: Registra eventos en archivos de log.
+- **AprendeMasNotificationService**:
+  - Notificador que muestra mensajes en la bandeja del sistema.
+  - `Program.cs`: Gestiona el ícono, procesa mensajes, y guarda el estado en `config.json`.
 
-Verifica el ícono en la bandeja del sistema:
-Muestra notificaciones cuando el servicio está activo.
-Permanece visible en modo pausa.
+## Documentación
 
+- [Guía de Desarrollo](DEVELOPMENT.md): Cómo configurar el entorno, compilar, y depurar.
+- [Arquitectura](ARCHITECTURE.md): Diagrama de componentes y flujo de comunicación.
+- [Flujo de Notificaciones](SEQUENCE.md): Diagrama de secuencia para comandos y notificaciones.
+- [Diagrama de Clases](CLASS_DIAGRAM.md): Estructura interna de las clases.
+- [Changelog](CHANGELOG.md): Historial de cambios y versiones.
 
+## Logs
 
-Estructura del Proyecto
+Los logs se generan automáticamente en:
+- `C:\Program Files (x86)\Aprende Mas\AprendeMasWindowsService\Logs\Service.log`
+- `C:\Program Files (x86)\Aprende Mas\AprendeMasNotificationService\Logs\NotificationService.log`
+- `C:\Program Files (x86)\Aprende Mas\AprendeMas.UI\Logs\UI.log`
 
-AprendeMas.UI: Interfaz gráfica (Windows Forms) para controlar el servicio.
-MainForm.cs: UI principal con botones de control.
-PipeClient.cs: Envía comandos al servicio via named pipes.
+**Formato**: `[Timestamp] Nivel [Fuente] Mensaje`  
+**Ejemplo**: `[2025-05-25 09:19:23.456] INFO [ExecuteAsync] Servicio iniciando...`
 
+Para verificar:
+```powershell
+type "C:\Program Files (x86)\Aprende Mas\*\Logs\*.log"
+```
 
-AprendeMasWindowsService: Servicio de Windows que procesa comandos y envía notificaciones.
-AprendeMasService.cs: Lógica del servicio.
-NotificationManager.cs: Gestiona notificaciones.
-PipeServer.cs, NotifierPipeClient.cs: Comunicación por pipes.
-Logger.cs: Registro de eventos en archivos de log.
+## Contribución
 
+¡Bienvenidos los aportes, cracks! 😎
 
-AprendeMasNotificationService: Notificador que muestra mensajes en la bandeja del sistema.
-Program.cs: Gestiona el ícono y procesa mensajes del servicio.
-Guarda el estado (START/STOP) en config.json.
+1. Haz un fork del repositorio.
+2. Crea una rama:
+   ```bash
+   git checkout -b feature/nueva-funcion
+   ```
+3. Commitea tus cambios:
+   ```bash
+   git commit -m "Añadir nueva función"
+   ```
+4. Sube la rama:
+   ```bash
+   git push origin feature/nueva-funcion
+   ```
+5. Abre un Pull Request en GitHub.
 
+Sigue la [Guía de Desarrollo](DEVELOPMENT.md) para configurar tu entorno.
 
+## Licencia
 
-Logs
-Los logs se generan en:
+[MIT License](LICENSE) - Copyright (c) 2025 Mariano
 
-C:\Program Files (x86)\Aprende Mas\AprendeMasWindowsService\Logs\Service.log
-C:\Program Files (x86)\Aprende Mas\AprendeMasNotificationService\Logs\NotificationService.log
-C:\Program Files (x86)\Aprende Mas\AprendeMas.UI\Logs\UI.log
+## Contacto
 
-Formato: [Timestamp] Nivel [Fuente] Mensaje (por ejemplo, [2025-05-24 20:41:23.456] INFO [ExecuteAsync] Servicio iniciando...).
-Contribución
-
-Haz un fork del repositorio.
-Crea una rama (git checkout -b feature/nueva-funcion).
-Commitea tus cambios (git commit -m "Añadir nueva función").
-Sube la rama (git push origin feature/nueva-funcion).
-Abre un Pull Request.
-
-Licencia
-MIT License - Ver LICENSE para detalles.
+Para dudas o sugerencias, abre un [issue](https://github.com/Mariano2025/aprende-mas/issues) en el repositorio. ¡A meterle flow! 🚀
