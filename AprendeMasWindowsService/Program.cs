@@ -13,7 +13,7 @@ namespace MiServicioWindows
             Host.CreateDefaultBuilder(args)
                 .UseWindowsService(options =>
                 {
-                    options.ServiceName = "MiServicioWindows";
+                    options.ServiceName = "AprendeMasService";
                 })
                 .ConfigureServices(services =>
                 {
@@ -22,7 +22,7 @@ namespace MiServicioWindows
                     {
                         logging.AddEventLog(settings =>
                         {
-                            settings.SourceName = "MiServicioWindows";
+                            settings.SourceName = "AprendeMasService";
                             settings.LogName = "Application";
                         });
                         logging.AddConsole();
