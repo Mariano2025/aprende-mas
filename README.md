@@ -68,7 +68,7 @@ Sistema de notificaciones para Windows que permite enviar mensajes a través de 
   - `Logger.cs`: Registra eventos en archivos de log.
 - **AprendeMasNotificationService**:
   - Notificador que muestra mensajes en la bandeja del sistema.
-  - `Program.cs`: Gestiona el ícono, procesa mensajes, y guarda el estado en `config.json`.
+  - `AprendeMasNotificationService.cs`: Gestiona el ícono, procesa mensajes, y guarda el estado en `config.json`.
 
 ## Documentación
 
