@@ -4,8 +4,8 @@
 
 ```mermaid
 graph TD
-    A[AprendeMas.UI] -->|Comandos START/STOP<br>via AprendeMasPipe (out)| B[AprendeMasWindowsService]
-    B -->|Notificaciones<br>via CanalNotificaciones (out)| C[AprendeMasNotificationService]
+    A[AprendeMas.UI] -->|Comandos START/STOP via AprendeMasPipe out| B[AprendeMasWindowsService]
+    B -->|Notificaciones via CanalNotificaciones out| C[AprendeMasNotificationService]
     C -->|Muestra ícono y notificaciones| D[System Tray]
     B -->|Escribe logs| E[AprendeMasService.log, NotificationManager.log, etc.]
     C -->|Escribe logs| F[NotificationService.log, PipeServer.log, etc.]
