@@ -95,8 +95,8 @@ namespace AprendeMasNotificationService
                 notifyIcon.BalloonTipTitle = "Servicio Activo";
                 // Actualiza el texto del mensaje emergente
                 notifyIcon.BalloonTipText = "Escuchando notificaciones...";
-                // Muestra el mensaje emergente durante 2 segundos
-                notifyIcon.ShowBalloonTip(2000);
+                // Muestra el mensaje emergente durante 1 segundos
+                notifyIcon.ShowBalloonTip(1000);
                 // Registra en el log el cambio de estado
                 logger.Info("Estado cambiado a START.", nameof(HandleMessage));
             }
