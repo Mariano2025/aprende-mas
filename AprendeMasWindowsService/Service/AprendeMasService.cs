@@ -1,4 +1,5 @@
 using AprendeMasWindowsService.Communication;
+using AprendeMasWindowsService.mDNS;
 using AprendeMasWindowsService.Notifications;
 using AprendeMasWindowsService.Utilities;
 using Microsoft.Extensions.Hosting;
@@ -18,6 +19,7 @@ namespace AprendeMasWindowsService.Service
         private readonly PipeServer pipeServer;
         // Administrador de notificaciones para enviar y controlar notificaciones
         private readonly NotificationManager notificationManager;
+        private readonly MdnsService mdnsService; // Nueva instancia de MdnsService
 
         /// <summary>
         /// Constructor de la clase AprendeMasService. Inicializa el logger, el servidor de pipe y el administrador de notificaciones.
@@ -30,6 +32,8 @@ namespace AprendeMasWindowsService.Service
             pipeServer = new PipeServer(HandleCommand);
             // Crea una nueva instancia del administrador de notificaciones
             notificationManager = new NotificationManager();
+            // Inicializar MdnsService con un nombre de servicio estático
+            mdnsService = new MdnsService();
         }
 
         /// <summary>
@@ -95,6 +99,7 @@ namespace AprendeMasWindowsService.Service
             logger.Info("Deteniendo AprendeMasWindowsService...", nameof(StopAsync));
             // Detiene el administrador de notificaciones
             await notificationManager.StopAsync();
+            await mdnsService.StopAsync(); // Detener el servicio mDNS
             // Detiene el servidor de pipe
             pipeServer.Stop();
             // Llama al método base para detener el servicio
@@ -115,6 +120,7 @@ namespace AprendeMasWindowsService.Service
                     case "START":
                         // Registra en el log que se recibió el comando START
                         logger.Info("Recibido comando START. Iniciando NotificationManager...", nameof(HandleCommand));
+                        await mdnsService.StartAsync(); // Iniciar el servicio mDNS
                         // Inicia el administrador de notificaciones
                         await notificationManager.StartAsync();
                         break;
@@ -122,6 +128,7 @@ namespace AprendeMasWindowsService.Service
                     case "STOP":
                         // Registra en el log que se recibió el comando STOP
                         logger.Info("Recibido comando STOP. Deteniendo NotificationManager...", nameof(HandleCommand));
+                        await mdnsService.StopAsync(); // Detener el servicio mDNS
                         // Detiene el administrador de notificaciones
                         await notificationManager.StopAsync();
                         break;

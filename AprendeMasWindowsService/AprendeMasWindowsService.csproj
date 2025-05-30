@@ -11,13 +11,17 @@
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.Logging.EventLog" Version="8.0.0" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="Serilog.Extensions.Logging.File" Version="3.0.0" />
   </ItemGroup>
 
   <ItemGroup>
-    <Content Update="appsettings.services.json">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
+    <Reference Include="Makaretu.Dns">
+      <HintPath>..\..\EscrituraAgil\EscrituraAgil\bin\Release\net8.0-windows\Makaretu.Dns.dll</HintPath>
+    </Reference>
+    <Reference Include="Makaretu.Dns.Multicast.New">
+      <HintPath>..\..\EscrituraAgil\EscrituraAgil\bin\Release\net8.0-windows\Makaretu.Dns.Multicast.New.dll</HintPath>
+    </Reference>
   </ItemGroup>
 
 </Project>
