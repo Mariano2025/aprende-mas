@@ -150,9 +150,9 @@ namespace AprendeMasWindowsService.Configuration
                     WebSocketTimeoutSeconds = config.WebSocket?.TimeoutSeconds ?? 60;
 
                     // Cargar Mdns
-                    MdnsServiceName = config.Mdns?.ServiceName ?? "AprendeMasWebSocket";
+                    MdnsServiceName = config.Mdns?.ServiceName ?? "AprendeMas";
                     MdnsServiceType = config.Mdns?.ServiceType ?? "_http._tcp";
-                    MdnsUsername = config.Mdns?.Username;
+                    MdnsUsername = Environment.UserName;
                     MdnsPort = config.Mdns?.Port ?? 5353;
                     MdnsTTL = config.Mdns?.TTL ?? 120;
                     MdnsAdvertiseIntervalSeconds = config.Mdns?.AdvertiseIntervalSeconds ?? 300;
@@ -163,32 +163,6 @@ namespace AprendeMasWindowsService.Configuration
                     NetworkRetryAttempts = config.Network?.RetryAttempts ?? 3;
                     NetworkRetryDelaySeconds = config.Network?.RetryDelaySeconds ?? 5;
                 }
-                else
-                {
-                    // Carga desde variables de entorno si no hay appsettings.json
-                    GoogleSpeechApiKey = Environment.GetEnvironmentVariable("GOOGLE_SPEECH_API_KEY");
-                    GoogleSpeechBaseUrl = Environment.GetEnvironmentVariable("GOOGLE_SPEECH_BASE_URL");
-                    GoogleSpeechTimeoutSeconds = int.TryParse(Environment.GetEnvironmentVariable("GOOGLE_SPEECH_TIMEOUT_SECONDS"), out int timeout) ? timeout : 30;
-
-                    string portString = Environment.GetEnvironmentVariable("WEB_SOCKET_PORT");
-                    WebSocketPort = ushort.TryParse(portString, out ushort port) ? port : (ushort)5000;
-                    WebSocketMaxConnections = int.TryParse(Environment.GetEnvironmentVariable("WEB_SOCKET_MAX_CONNECTIONS"), out int maxConn) ? maxConn : 100;
-                    WebSocketTimeoutSeconds = int.TryParse(Environment.GetEnvironmentVariable("WEB_SOCKET_TIMEOUT_SECONDS"), out int wsTimeout) ? wsTimeout : 60;
-
-                    MdnsServiceName = Environment.GetEnvironmentVariable("MDNS_SERVICE_NAME") ?? "AprendeMasWebSocket";
-                    MdnsServiceType = Environment.GetEnvironmentVariable("MDNS_SERVICE_TYPE") ?? "_http._tcp";
-                    MdnsUsername = Environment.GetEnvironmentVariable("MDNS_USERNAME");
-                    MdnsPort = ushort.TryParse(Environment.GetEnvironmentVariable("MDNS_PORT"), out ushort mdnsPort) ? mdnsPort : (ushort)5353;
-                    MdnsTTL = int.TryParse(Environment.GetEnvironmentVariable("MDNS_TTL"), out int ttl) ? ttl : 120;
-                    MdnsAdvertiseIntervalSeconds = int.TryParse(Environment.GetEnvironmentVariable("MDNS_ADVERTISE_INTERVAL_SECONDS"), out int interval) ? interval : 300;
-
-                    NetworkLocalIp = Environment.GetEnvironmentVariable("NETWORK_LOCAL_IP");
-                    string allowedIpsString = Environment.GetEnvironmentVariable("NETWORK_ALLOWED_IPS");
-                    NetworkAllowedIps = !string.IsNullOrEmpty(allowedIpsString) ? allowedIpsString.Split(',').ToList() : new List<string>();
-                    NetworkRetryAttempts = int.TryParse(Environment.GetEnvironmentVariable("NETWORK_RETRY_ATTEMPTS"), out int retryAttempts) ? retryAttempts : 3;
-                    NetworkRetryDelaySeconds = int.TryParse(Environment.GetEnvironmentVariable("NETWORK_RETRY_DELAY_SECONDS"), out int retryDelay) ? retryDelay : 5;
-                }
-
                 // Validación de configuraciones requeridas
                 if (string.IsNullOrEmpty(GoogleSpeechApiKey) || string.IsNullOrEmpty(GoogleSpeechBaseUrl) || WebSocketPort == 0)
                 {

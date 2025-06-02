@@ -81,7 +81,7 @@ namespace AprendeMasNotificationService.Communication
                 catch (Exception ex)
                 {
                     // Registra cualquier error durante el procesamiento del mensaje
-                    _logger.Error("Error al procesar mensaje.", ex, nameof(ListenAsync));
+                    //_logger.Error("Error al procesar mensaje.", ex, nameof(ListenAsync));
                 }
             }
         }
