@@ -1,4 +1,4 @@
-using AprendeMas.WindowsService.WebSocket;
+using AprendeMasWindowsService.WebSocket;
 using AprendeMasWindowsService.Communication;
 using AprendeMasWindowsService.Configuration;
 using AprendeMasWindowsService.mDNS;
@@ -8,6 +8,7 @@ using Microsoft.Extensions.Hosting;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using AprendeMasWindowsService.Audio;
 
 // Define el espacio de nombres para el servicio principal de Windows
 namespace AprendeMasWindowsService.Service
@@ -23,6 +24,7 @@ namespace AprendeMasWindowsService.Service
         private readonly NotificationManager notificationManager;
         private readonly MdnsService mdnsService; // Nueva instancia de MdnsService
         private readonly WebSocketServer webSocketServer; //
+        private readonly AudioConverter audioConverter; //
 
         /// <summary>
         /// Constructor de la clase AprendeMasService. Inicializa el logger, el servidor de pipe y el administrador de notificaciones.
@@ -33,11 +35,12 @@ namespace AprendeMasWindowsService.Service
             logger = new Logger("Service", @"C:\Program Files (x86)\Aprende Mas\AprendeMasWindowsService");
             // Crea un nuevo servidor de pipe con el manejador de comandos
             pipeServer = new PipeServer(HandleCommand);
+            audioConverter = new AudioConverter(logger); // Crear instancia de AudioConverter
             // Crea una nueva instancia del administrador de notificaciones
             notificationManager = new NotificationManager();
             // Inicializar MdnsService con un nombre de servicio estático
             mdnsService = new MdnsService();
-            webSocketServer = new WebSocketServer(ApiConfig.Instance.WebSocketPort, notificationManager, logger); // Usa puerto desde configuración
+            webSocketServer = new WebSocketServer(ApiConfig.Instance.WebSocketPort, notificationManager, logger, audioConverter); // Usa puerto desde configuración
         }
 
         /// <summary>

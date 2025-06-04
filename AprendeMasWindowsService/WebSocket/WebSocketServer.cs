@@ -1,33 +1,36 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.WebSockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using AprendeMasWindowsService.Audio;
 using AprendeMasWindowsService.Configuration;
 using AprendeMasWindowsService.Notifications;
 using AprendeMasWindowsService.Utilities;
 
-namespace AprendeMas.WindowsService.WebSocket
+namespace AprendeMasWindowsService.WebSocket
 {
     /// <summary>
     /// Servidor WebSocket de alto rendimiento para gestionar conexiones de dispositivos móviles,
-    /// mensajería por canales, y transferencia de archivos binarios (audio), con manejo robusto de errores
+    /// mensajería por canales, y transferencia de archivos binarios (audio M4A a WAV), con manejo robusto de errores
     /// y notificaciones integradas.
     /// </summary>
     public class WebSocketServer
     {
-        private readonly HttpListener _httpListener; // Escucha conexiones HTTP/WebSocket entrantes
+        private readonly HttpListener _httpListener;              // Escucha conexiones HTTP/WebSocket entrantes
         private readonly NotificationManager _notificationManager; // Gestiona notificaciones de eventos
-        private readonly Logger _logger;                   // Registra actividades y errores
-        private readonly int _port;                        // Puerto en el que escucha el servidor
+        private readonly Logger _logger;                         // Registra actividades y errores
+        private readonly int _port;                              // Puerto en el que escucha el servidor
         private readonly ConcurrentDictionary<string, ClientConnection> _clients; // Lista thread-safe de clientes conectados
         private readonly ConcurrentDictionary<string, ConcurrentBag<string>> _channels; // Mapea canales a IDs de clientes
-        private CancellationTokenSource _cts;             // Controla la cancelación del servidor
-        private bool _isRunning;                          // Indica si el servidor está activo
+        private readonly AudioConverter _audioConverter;         // Convierte audio M4A a WAV
+        private CancellationTokenSource _cts;                    // Controla la cancelación del servidor
+        private bool _isRunning;                                 // Indica si el servidor está activo
 
         /// <summary>
         /// Inicializa una nueva instancia del servidor WebSocket con la configuración especificada.
@@ -35,11 +38,13 @@ namespace AprendeMas.WindowsService.WebSocket
         /// <param name="port">Puerto en el que escuchará el servidor.</param>
         /// <param name="notificationManager">Gestor de notificaciones para eventos.</param>
         /// <param name="logger">Servicio de logging para registrar eventos.</param>
-        public WebSocketServer(int port, NotificationManager notificationManager, Logger logger)
+        /// <param name="audioConverter">Convertidor de audio para procesar M4A a WAV.</param>
+        public WebSocketServer(int port, NotificationManager notificationManager, Logger logger, AudioConverter audioConverter)
         {
             _port = port;
             _notificationManager = notificationManager ?? throw new ArgumentNullException(nameof(notificationManager));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _audioConverter = audioConverter ?? throw new ArgumentNullException(nameof(audioConverter));
             _httpListener = new HttpListener();
             _httpListener.Prefixes.Add($"http://*:{_port}/ws/"); // Escucha en cualquier dirección
             _clients = new ConcurrentDictionary<string, ClientConnection>();
@@ -66,7 +71,6 @@ namespace AprendeMas.WindowsService.WebSocket
                 _isRunning = true;
                 _logger.Info($"Servidor WebSocket iniciado en el puerto {_port}.", nameof(StartAsync));
                 await _notificationManager.SendNotificationAsync("Servidor WebSocket iniciado.");
-
                 // Inicia el bucle de aceptación de conexiones en una tarea en segundo plano
                 _ = Task.Run(() => AcceptConnectionsAsync(_cts.Token), _cts.Token);
             }
@@ -131,7 +135,6 @@ namespace AprendeMas.WindowsService.WebSocket
 
                         _logger.Info($"Cliente {clientId} conectado.", nameof(AcceptConnectionsAsync));
                         await _notificationManager.SendNotificationAsync($"Dispositivo móvil {clientId} conectado.");
-
                         // Inicia el manejo del cliente en una tarea separada
                         _ = Task.Run(() => HandleClientAsync(client, cancellationToken), cancellationToken);
                     }
@@ -173,9 +176,8 @@ namespace AprendeMas.WindowsService.WebSocket
                     }
                     else if (result.MessageType == WebSocketMessageType.Binary)
                     {
-                        var binaryData = new byte[result.Count];
-                        Array.Copy(buffer, binaryData, result.Count);
-                        await ProcessBinaryMessageAsync(client.ClientId, binaryData);
+                        // Procesar mensaje binario con protocolo de tamaño + datos
+                        await ProcessBinaryMessageAsync(client.ClientId, buffer, result, client.WebSocket, cancellationToken);
                     }
                     else if (result.MessageType == WebSocketMessageType.Close)
                     {
@@ -242,22 +244,80 @@ namespace AprendeMas.WindowsService.WebSocket
         }
 
         /// <summary>
-        /// Procesa mensajes binarios (por ejemplo, archivos de audio) recibidos de un cliente.
+        /// Procesa mensajes binarios (por ejemplo, archivos de audio M4A) recibidos de un cliente, utilizando protocolo de tamaño + datos.
         /// </summary>
         /// <param name="clientId">Identificador único del cliente.</param>
-        /// <param name="data">Datos binarios recibidos.</param>
-        private async Task ProcessBinaryMessageAsync(string clientId, byte[] data)
+        /// <param name="buffer">Buffer inicial con datos recibidos.</param>
+        /// <param name="initialResult">Resultado inicial de recepción.</param>
+        /// <param name="webSocket">WebSocket del cliente.</param>
+        /// <param name="cancellationToken">Token de cancelación.</param>
+        private async Task ProcessBinaryMessageAsync(string clientId, byte[] buffer, WebSocketReceiveResult initialResult, System.Net.WebSockets.WebSocket webSocket, CancellationToken cancellationToken)
         {
             try
             {
-                // Enviar datos binarios al canal "audio" por defecto
-                await SendBinaryToChannelAsync("audio", data);
-                _logger.Info($"Cliente {clientId} envió archivo binario (audio).", nameof(ProcessBinaryMessageAsync));
-                await _notificationManager.SendNotificationAsync($"Cliente {clientId} envió archivo de audio al canal audio.");
+                // Leer los primeros 4 bytes para obtener el tamaño del archivo (big-endian)
+                if (initialResult.Count < 4)
+                {
+                    _logger.Error($"Mensaje binario inicial demasiado corto para cliente {clientId}.");
+                    await _notificationManager.SendNotificationAsync($"Mensaje binario inválido de cliente {clientId}.");
+                    return;
+                }
+
+                int fileSize = BitConverter.ToInt32(buffer.Take(4).Reverse().ToArray(), 0); // Convertir de big-endian a int
+                _logger.Info($"Recibiendo archivo de {fileSize} bytes del cliente {clientId}.", nameof(ProcessBinaryMessageAsync));
+
+                // Buffer para almacenar el archivo completo
+                using var memoryStream = new MemoryStream();
+
+                // Si el mensaje inicial contiene datos después del tamaño, agregarlos
+                if (initialResult.Count > 4)
+                {
+                    await memoryStream.WriteAsync(buffer, 4, initialResult.Count - 4, cancellationToken);
+                }
+
+                // Continuar recibiendo fragmentos hasta completar el archivo
+                int bytesReceived = initialResult.Count - 4;
+                while (bytesReceived < fileSize && webSocket.State == WebSocketState.Open && !cancellationToken.IsCancellationRequested)
+                {
+                    var result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), cancellationToken);
+                    if (result.MessageType != WebSocketMessageType.Binary)
+                    {
+                        _logger.Error($"Mensaje no binario recibido mientras se esperaba archivo de cliente {clientId}.");
+                        await _notificationManager.SendNotificationAsync($"Formato de mensaje inválido de cliente {clientId}.");
+                        return;
+                    }
+
+                    await memoryStream.WriteAsync(buffer, 0, result.Count, cancellationToken);
+                    bytesReceived += result.Count;
+                    _logger.Info($"Recibidos {bytesReceived}/{fileSize} bytes del cliente {clientId}.", nameof(ProcessBinaryMessageAsync));
+                }
+
+                if (bytesReceived != fileSize)
+                {
+                    _logger.Error($"Tamaño de archivo recibido ({bytesReceived} bytes) no coincide con el esperado ({fileSize} bytes) para cliente {clientId}.");
+                    await _notificationManager.SendNotificationAsync($"Error en la recepción de archivo de cliente {clientId}.");
+                    return;
+                }
+
+                // Convertir M4A a WAV usando AudioConverter
+                byte[] fileData = memoryStream.ToArray();
+                byte[] convertedAudio = await _audioConverter.ConvertM4AToWav(fileData);
+                if (convertedAudio == null || convertedAudio.Length == 0)
+                {
+                    _logger.Error($"La conversión de audio falló para el cliente {clientId}.");
+                    await _notificationManager.SendNotificationAsync($"La conversión de audio falló para el cliente {clientId}.");
+                    return;
+                }
+
+                // Enviar el audio convertido (WAV) al canal "audio"
+                await SendBinaryToChannelAsync("audio", convertedAudio);
+                _logger.Info($"Cliente {clientId} envió audio M4A, convertido a WAV y transmitido al canal 'audio'.", nameof(ProcessBinaryMessageAsync));
+                await _notificationManager.SendNotificationAsync($"Cliente {clientId} envió archivo de audio, convertido a WAV y transmitido al canal 'audio'.");
             }
             catch (Exception ex)
             {
-                _logger.Error($"Error al procesar mensaje binario de cliente {clientId}.", ex, nameof(ProcessBinaryMessageAsync));
+                _logger.Error($"Error al procesar audio binario de cliente {clientId}.", ex, nameof(ProcessBinaryMessageAsync));
+                await _notificationManager.SendNotificationAsync($"Error al procesar audio de cliente {clientId}.");
             }
         }
 
@@ -299,10 +359,7 @@ namespace AprendeMas.WindowsService.WebSocket
         /// <summary>
         /// Envía un mensaje de texto a todos los clientes suscritos a un canal específico.
         /// </summary>
-        /// <param name="channel">Nombre del canal objetivo.</param>
-        /// <param name="message">Mensaje a enviar.</param>
-        /// <returns>Tarea que representa la operación asíncrona.</returns>
-        internal async Task SendMessageToChannelAsync(string channel, string message)
+        private async Task SendMessageToChannelAsync(string channel, string message)
         {
             if (_channels.TryGetValue(channel, out var channelClients))
             {
@@ -320,7 +377,7 @@ namespace AprendeMas.WindowsService.WebSocket
         }
 
         /// <summary>
-        /// Envía datos binarios (por ejemplo, archivos de audio) a todos los clientes suscritos a un canal.
+        /// Envía datos binarios (por ejemplo, archivos de audio WAV) a todos los clientes suscritos a un canal.
         /// </summary>
         /// <param name="channel">Nombre del canal objetivo.</param>
         /// <param name="data">Datos binarios a enviar.</param>
